@@ -24,3 +24,6 @@ class ReceiptData(BaseModel):
 class OCRProvider(ABC):
     @abstractmethod
     async def extract(self, file_bytes: bytes, mime_type: str) -> ReceiptData: ...
+
+    @abstractmethod
+    async def extract_text(self, text: str) -> ReceiptData: ...

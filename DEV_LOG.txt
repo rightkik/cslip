@@ -43,6 +43,33 @@ NOTES: linebot.v3 split: WebhookParser in linebot.v3.webhook (singular),
        BackgroundTasks.add_task patched in tests (cleaner than awaiting AsyncMock across
        thread boundaries in TestClient).
 ========================================
+[2026-06-13 21:00] TASK: Task 6 - Edit flow + Natural language quick-entry
+----------------------------------------
+WHAT: Two features added:
+  1. Edit flow: TextMessageContent handler routes through parse_edit_command() (pure fn).
+     If text matches a field keyword (ยอด/หมวด/ร้าน/วันที่/…) AND user has a pending receipt
+     → _apply_edit: _coerce_field_value → update_fields → get_by_id → reply_receipt_confirmation.
+     "edit" postback now shows current summary + edit instructions (_handle_edit_prompt).
+  2. Natural language quick-entry: text messages that don't match edit pattern (or no pending)
+     go to _handle_text_entry → GeminiOCR.extract_text (text-only Gemini call) → insert_pending
+     → reply_receipt_confirmation. Validation: if result has no vendor_name AND no total_amount
+     → reply error instead of saving empty receipt.
+  Added to OCRProvider interface: extract_text(text) → ReceiptData.
+  Added to GeminiOCR: extract_text with _TEXT_PROMPT (shorter, example-driven prompt).
+  Added to ReceiptRepository: get_latest_pending_by_user, update_fields (Decimal→float, date→ISO).
+  Added 26 tests across test_text_entry.py/test_gemini.py/test_repository.py/test_webhook.py
+  (78 total, all pass).
+WHY:  Edit by typing "ยอด 1250" is faster than re-uploading a corrected photo.
+      Text quick-entry covers common daily expenses without vision OCR, saving Gemini quota.
+      Both flows re-use the same OCRProvider interface (CLAUDE.md rule 4).
+FILES: app/ocr/base.py, app/ocr/gemini.py, app/db/repository.py, app/main.py,
+       tests/test_text_entry.py (new), tests/test_gemini.py, tests/test_repository.py,
+       tests/test_postback.py, tests/test_webhook.py
+NOTES: TextMessageContent.text is the message field (linebot v3 webhooks).
+       Decimal import missing from repository.py initially — caused NameError on update_fields.
+       parse_edit_command is case-insensitive for English keywords (vat/VAT/wht/WHT).
+       Synthetic line_message_id for text entries: "text:{uuid4()}" avoids collision with real IDs.
+========================================
 [2026-06-13 20:00] TASK: Task 5 - Confirmation flow + Google Sheets sync
 ----------------------------------------
 WHAT: Implemented app/storage/sheets.py: append_receipt_row(ReceiptRecord) appends one row

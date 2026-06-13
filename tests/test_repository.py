@@ -48,6 +48,51 @@ def _make_repo() -> tuple[ReceiptRepository, MagicMock]:
     return ReceiptRepository(mock_client), mock_client
 
 
+async def test_get_latest_pending_by_user_returns_record():
+    repo, client = _make_repo()
+    mock_result = MagicMock()
+    mock_result.data = [_SAMPLE_ROW]
+    chain = (
+        client.table.return_value.select.return_value
+        .eq.return_value.eq.return_value
+        .order.return_value.limit.return_value
+    )
+    chain.execute = AsyncMock(return_value=mock_result)
+
+    record = await repo.get_latest_pending_by_user("U123")
+
+    assert isinstance(record, ReceiptRecord)
+    assert str(record.id) == _RECEIPT_ID
+
+
+async def test_get_latest_pending_by_user_returns_none_when_empty():
+    repo, client = _make_repo()
+    mock_result = MagicMock()
+    mock_result.data = []
+    chain = (
+        client.table.return_value.select.return_value
+        .eq.return_value.eq.return_value
+        .order.return_value.limit.return_value
+    )
+    chain.execute = AsyncMock(return_value=mock_result)
+
+    record = await repo.get_latest_pending_by_user("U999")
+    assert record is None
+
+
+async def test_update_fields_serialises_decimal():
+    repo, client = _make_repo()
+    chain = client.table.return_value.update.return_value.eq.return_value
+    chain.execute = AsyncMock(return_value=MagicMock())
+
+    from decimal import Decimal
+    await repo.update_fields(_RECEIPT_ID, {"total_amount": Decimal("999.99")})
+
+    update_payload = client.table.return_value.update.call_args[0][0]
+    assert update_payload["total_amount"] == 999.99
+    assert isinstance(update_payload["total_amount"], float)
+
+
 async def test_get_by_id_returns_record():
     repo, client = _make_repo()
     mock_result = MagicMock()

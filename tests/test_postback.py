@@ -51,11 +51,16 @@ async def test_handle_postback_missing_id_returns_early():
     mock_confirm.assert_not_awaited()
 
 
-async def test_handle_postback_edit_replies_wip():
-    with patch("app.main.reply_text", new_callable=AsyncMock) as mock_reply:
+async def test_handle_postback_edit_shows_summary_and_instructions():
+    repo = _mock_repo()
+    with (
+        patch("app.main.get_repository", new_callable=AsyncMock, return_value=repo),
+        patch("app.main.reply_text", new_callable=AsyncMock) as mock_reply,
+    ):
         await _handle_postback(f"action=edit&id={_RECEIPT_ID}", "token")
     mock_reply.assert_awaited_once()
-    assert "แก้ไข" in mock_reply.call_args[0][1]
+    msg = mock_reply.call_args[0][1]
+    assert "พิมพ์แก้ไข" in msg
 
 
 # --- _handle_confirm ---

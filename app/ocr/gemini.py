@@ -10,6 +10,20 @@ from app.ocr.base import OCRProvider, ReceiptData
 
 logger = logging.getLogger(__name__)
 
+_TEXT_PROMPT = """
+You are a Thai expense quick-entry parser. The user typed a short text describing an expense.
+Parse it into the standard receipt JSON format.
+
+Examples:
+- "กาแฟ 65" -> {"vendor_name":"กาแฟ","total_amount":65,"category":"ค่าอาหาร","confidence":0.8}
+- "ค่า Figma 590" -> {"vendor_name":"Figma","total_amount":590,"category":"ค่าซอฟต์แวร์","confidence":0.9}
+- "ค่าอาหาร 120 บาท" -> {"category":"ค่าอาหาร","total_amount":120,"confidence":0.85}
+- "Grab 95" -> {"vendor_name":"Grab","total_amount":95,"category":"ค่าเดินทาง","confidence":0.9}
+
+Return ONLY a valid JSON object with the same fields as the receipt schema.
+Unknown fields -> null. currency default "THB". No markdown, no code fences.
+""".strip()
+
 _SYSTEM_PROMPT = """
 You are a Thai receipt and tax-document extraction engine. You will receive an image or PDF of
 a receipt, tax invoice, bank transfer slip, handwritten cash bill, or an order screenshot
@@ -68,6 +82,23 @@ class GeminiOCR(OCRProvider):
             return ReceiptData(**data)
         except Exception:
             logger.exception("Gemini OCR failed")
+            raise
+
+
+    async def extract_text(self, text: str) -> ReceiptData:
+        try:
+            response = await self._client.aio.models.generate_content(
+                model=self._model,
+                contents=[text],
+                config=types.GenerateContentConfig(
+                    system_instruction=_TEXT_PROMPT,
+                    response_mime_type="application/json",
+                ),
+            )
+            data = _safe_parse(response.text or "")
+            return ReceiptData(**data)
+        except Exception:
+            logger.exception("Gemini text parse failed")
             raise
 
 

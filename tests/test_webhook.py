@@ -14,7 +14,13 @@ from app.line_client import format_receipt_summary
 from app.main import app
 from app.ocr.base import ReceiptData
 from linebot.v3.webhook import WebhookParser
-from linebot.v3.webhooks import FileMessageContent, ImageMessageContent, MessageEvent, PostbackEvent
+from linebot.v3.webhooks import (
+    FileMessageContent,
+    ImageMessageContent,
+    MessageEvent,
+    PostbackEvent,
+    TextMessageContent,
+)
 
 client = TestClient(app)
 
@@ -147,6 +153,30 @@ def test_webhook_file_message_queues_background_task():
         "message_id": "file-001",
         "reply_token": "reply-token-xyz",
         "line_user_id": "user-456",
+    }
+
+
+def test_webhook_text_message_queues_handle_text():
+    body = json.dumps({"destination": "test", "events": []}).encode()
+
+    mock_msg = MagicMock(spec=TextMessageContent)
+    mock_msg.text = "กาแฟ 65 บาท"
+
+    mock_event = MagicMock(spec=MessageEvent)
+    mock_event.message = mock_msg
+    mock_event.reply_token = "reply-text"
+    mock_event.source = MagicMock()
+    mock_event.source.user_id = "user-789"
+
+    resp, mock_add = _webhook_with_event(mock_event, body)
+
+    assert resp.status_code == 200
+    mock_add.assert_called_once()
+    assert mock_add.call_args[0][0] is main_module._handle_text_message
+    assert mock_add.call_args[1] == {
+        "text": "กาแฟ 65 บาท",
+        "reply_token": "reply-text",
+        "line_user_id": "user-789",
     }
 
 

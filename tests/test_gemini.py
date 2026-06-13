@@ -89,6 +89,22 @@ async def test_extract_with_code_fence_response():
 
 
 @pytest.mark.asyncio
+async def test_extract_text_returns_receipt_data():
+    mock_resp = MagicMock()
+    mock_resp.text = json.dumps({"vendor_name": "กาแฟ", "total_amount": 65.0, "confidence": 0.8})
+
+    with patch("app.ocr.gemini.genai.Client") as MockClient:
+        mock_instance = MockClient.return_value
+        mock_instance.aio.models.generate_content = AsyncMock(return_value=mock_resp)
+
+        ocr = GeminiOCR()
+        result = await ocr.extract_text("กาแฟ 65")
+
+    assert result.vendor_name == "กาแฟ"
+    assert result.total_amount == Decimal("65.0")
+
+
+@pytest.mark.asyncio
 async def test_extract_propagates_gemini_error():
     with patch("app.ocr.gemini.genai.Client") as MockClient:
         mock_instance = MockClient.return_value

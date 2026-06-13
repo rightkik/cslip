@@ -1,5 +1,6 @@
 import logging
 from datetime import date
+from decimal import Decimal
 
 from supabase import AsyncClient, acreate_client
 
@@ -23,6 +24,37 @@ async def _get_client() -> AsyncClient:
 class ReceiptRepository:
     def __init__(self, client: AsyncClient) -> None:
         self._client = client
+
+    async def get_latest_pending_by_user(self, line_user_id: str) -> ReceiptRecord | None:
+        result = (
+            await self._client.table("receipts")
+            .select("*")
+            .eq("line_user_id", line_user_id)
+            .eq("status", ReceiptStatus.pending.value)
+            .order("created_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        if not result.data:
+            return None
+        return ReceiptRecord.model_validate(result.data[0])
+
+    async def update_fields(self, receipt_id: str, fields: dict) -> None:
+        """Update arbitrary receipt fields. Serialises Decimal→float and date→ISO."""
+        row = {}
+        for k, v in fields.items():
+            if isinstance(v, Decimal):
+                row[k] = float(v)
+            elif hasattr(v, "isoformat"):
+                row[k] = v.isoformat()
+            else:
+                row[k] = v
+        await (
+            self._client.table("receipts")
+            .update(row)
+            .eq("id", receipt_id)
+            .execute()
+        )
 
     async def insert_pending(
         self,
