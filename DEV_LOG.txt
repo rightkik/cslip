@@ -22,6 +22,27 @@ NOTES: FastAPI 0.136.3 (newer than spec'd >=0.111) requires httpx2 for TestClien
        GOOGLE_SA_JSON_B64 decode logic deferred to Task 7 (deploy prep) as per PROMPTS.md.
 ========================================
 ========================================
+[2026-06-13 16:00] TASK: Task 2 - LINE webhook + client
+----------------------------------------
+WHAT: Implemented app/line_client.py: download_content (httpx, LINE Data API),
+      reply_text, reply_receipt_confirmation (Quick Reply with ยืนยัน/แก้ไข/ยกเลิก),
+      format_receipt_summary (Thai LINE message formatter).
+      Implemented POST /webhook in app/main.py: signature verification via
+      linebot.v3.webhook.WebhookParser, isinstance routing for image/file messages,
+      BackgroundTask for _process_receipt (download→OCR→reply). Dedup deferred to Task 3.
+      Added 10 tests in tests/test_webhook.py (19 total, all pass).
+WHY:  Reply happens before Drive upload (per ARCHITECTURE.md §5 reply ordering rule).
+      _process_receipt creates GeminiOCR() per call (simpler, negligible cost single-user).
+      reply_receipt_confirmation built now so Task 5 just wires it up.
+FILES: app/line_client.py, app/main.py, tests/test_webhook.py
+NOTES: linebot.v3 split: WebhookParser in linebot.v3.webhook (singular),
+       ImageMessageContent/FileMessageContent in linebot.v3.webhooks (plural) — same
+       MessageEvent class shared between both modules.
+       MagicMock(spec=) required for isinstance() checks in tests; __class__= does not work
+       with MagicMock (Python isinstance uses type(), not __class__ for MagicMock).
+       BackgroundTasks.add_task patched in tests (cleaner than awaiting AsyncMock across
+       thread boundaries in TestClient).
+========================================
 [2026-06-13 15:00] TASK: Task 1 - OCR interface + Gemini
 ----------------------------------------
 WHAT: Implemented ReceiptData pydantic model and OCRProvider abstract base in app/ocr/base.py.
