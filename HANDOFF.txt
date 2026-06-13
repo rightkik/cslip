@@ -1,0 +1,242 @@
+================================================================================
+CSLIP — SESSION HANDOFF
+Last updated: 2026-06-13  (Tasks 0–6 complete, Task 7 remaining)
+================================================================================
+
+## QUICK STATUS
+Phase 1 MVP = 6/7 tasks done. Only Task 7 (Deploy prep) remains before the app
+is deployable on Render and usable end-to-end.
+
+  [x] Task 0 — Bootstrap (scaffold, /health, config)
+  [x] Task 1 — OCR interface + Gemini 2.0 Flash
+  [x] Task 2 — LINE webhook + client (download, reply, signature verify)
+  [x] Task 3 — Supabase repository (CRUD, dedup by messageId)
+  [x] Task 4 — Google Drive upload (folder cache, build_filename)
+  [x] Task 5 — Confirm flow + Google Sheets sync (postback routing)
+  [x] Task 6 — Edit flow + Natural language quick-entry
+  [ ] Task 7 — Deploy prep (Render Procfile/Dockerfile, GOOGLE_SA_JSON_B64 decode)
+
+GitHub: https://github.com/rightkik/cslip  (branch: main, all 6 tasks pushed)
+Tests:  78 tests, all passing (python -m pytest tests/ -v)
+
+
+================================================================================
+## WHAT TASK 7 NEEDS TO DO (from PROMPTS.md, adapted for Render)
+================================================================================
+
+1. Handle GOOGLE_SA_JSON_B64 decode at startup
+   - app/config.py already has the field; SETUP.md says "Task 7" handles decode
+   - Add a helper in app/config.py or a startup event in app/main.py:
+       import base64, json, tempfile, os
+       if settings.google_sa_json_b64 and not settings.google_sa_json_path:
+           decoded = base64.b64decode(settings.google_sa_json_b64)
+           tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".json")
+           tmp.write(decoded)
+           tmp.close()
+           os.environ["GOOGLE_SA_JSON_PATH"] = tmp.name
+     OR — better: drive.py and sheets.py already read GOOGLE_SA_JSON_B64 directly
+     (they check settings.google_sa_json_b64 and decode inline). So actually this
+     is already handled in Task 4/5! Verify by reading drive.py and sheets.py.
+
+2. Create deployment files for Render
+   - Procfile: "web: uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+   - render.yaml (optional but nice): defines the service, env vars, health check
+
+3. Verify /health works with all env vars set
+   - /health endpoint already exists and returns {"status":"ok","timestamp":"..."}
+
+4. SETUP.md already has Render + UptimeRobot instructions (added in earlier session)
+   - No major changes needed there
+
+5. Update DEV_LOG.txt (mandatory per CLAUDE.md rule 1)
+
+6. Mark Task 7 complete in ROADMAP.md
+
+
+================================================================================
+## KEY TECHNICAL DECISIONS & GOTCHAS
+================================================================================
+
+### LINE SDK imports (CRITICAL — caused multiple bugs)
+  - WebhookParser  → from linebot.v3.webhook   (singular)
+  - ImageMessageContent, FileMessageContent, TextMessageContent,
+    MessageEvent, PostbackEvent, PostbackContent
+                   → from linebot.v3.webhooks   (plural)
+  - MessageEvent is shared between both modules (same class)
+
+### Supabase async (supabase 2.31.0)
+  - acreate_client / AsyncClient available
+  - Async query: await client.table("receipts").select("*").execute()
+  - maybe_single() returns data=None (not []) when no row found
+  - Singleton pattern: module-level _client in repository.py
+
+### Google Drive / Sheets API
+  - google-api-python-client is synchronous → wrap in asyncio.to_thread()
+  - Both drive.py and sheets.py handle GOOGLE_SA_JSON_B64 inline (already done)
+  - Drive folder cache: dict[str, str] in drive.py, reset on process restart
+  - cache_discovery=False on build() to avoid disk writes on Render
+
+### MagicMock in tests
+  - MUST use MagicMock(spec=SomeClass) for isinstance() checks
+  - __class__= trick does NOT work with MagicMock
+
+### Reply ordering (30-second rule)
+  - ALWAYS: download → OCR → insert_pending → REPLY → Drive upload → Sheets sync
+  - Sheets sync: happens AFTER user confirms AND after reply to confirm postback
+  - Drive upload + Sheets sync are non-fatal (logged, receipt still in DB)
+
+### Gemini SDK (google-genai 2.8.0)
+  - Async path: client.aio.models.generate_content(...)
+  - Vision: contents=[types.Part.from_bytes(data=..., mime_type=...)]
+  - Text-only: contents=["the text string"]
+  - response_mime_type="application/json" set in GenerateContentConfig
+
+### Postback data format
+  - "action=confirm&id={receipt_uuid}"
+  - "action=cancel&id={receipt_uuid}"
+  - "action=edit&id={receipt_uuid}"
+  - Parsed with urllib.parse.parse_qsl()
+  - PostbackContent.__fields__ = ['data', 'params'] (pydantic v1 style)
+
+### Text entry synthetic message_id
+  - Format: "text:{uuid4()}" — avoids collision with real LINE messageIds
+  - line_message_id column has UNIQUE constraint in DB
+
+### Edit command keywords (parse_edit_command in main.py)
+  - ยอด/ยอดรวม → total_amount
+  - ก่อนภาษี/ยอดก่อน → subtotal
+  - ภาษี/vat/VAT → vat_amount
+  - wht/WHT → wht_amount
+  - หมวด/หมวดหมู่ → category
+  - ร้าน/ชื่อร้าน → vendor_name
+  - วันที่ → issue_date
+  - ประเภท → document_type
+  - เลขที่ → document_number
+  - เลขผู้เสียภาษี → vendor_tax_id
+  - Case-insensitive match, strips leading/trailing spaces
+
+
+================================================================================
+## COMPLETE FILE INVENTORY
+================================================================================
+
+### Core app files
+  app/__init__.py               — empty
+  app/config.py                 — Settings (pydantic-settings) + @lru_cache get_settings()
+  app/main.py                   — FastAPI app, webhook handler, all background task fns
+  app/line_client.py            — download_content, reply_text, reply_receipt_confirmation,
+                                  format_receipt_summary, _post_reply
+  app/ocr/__init__.py           — empty
+  app/ocr/base.py               — ReceiptData (Pydantic), OCRProvider (ABC) with
+                                  extract() and extract_text() abstract methods
+  app/ocr/gemini.py             — GeminiOCR: extract() (vision), extract_text() (text-only)
+                                  _SYSTEM_PROMPT, _TEXT_PROMPT, _safe_parse()
+  app/db/__init__.py            — empty
+  app/db/models.py              — ReceiptStatus (enum), ReceiptRecord (Pydantic)
+  app/db/repository.py          — ReceiptRepository class, get_repository() factory
+                                  Methods: get_by_id, get_by_message_id,
+                                  get_latest_pending_by_user, insert_pending,
+                                  update_status, update_drive_info, update_fields,
+                                  mark_synced, list_by_user_and_month
+  app/storage/__init__.py       — empty
+  app/storage/drive.py          — ensure_folder_path(), upload_file(), build_filename()
+                                  module-level _folder_cache, _drive_service singleton
+  app/storage/sheets.py         — append_receipt_row() — appends 11-col row to Sheet1
+  app/documents/__init__.py     — empty
+  app/documents/voucher.py      — stub (Phase 2)
+
+### Config / deployment
+  .env.example                  — all required env vars (see below)
+  requirements.txt              — all dependencies
+  pyproject.toml                — pytest config (asyncio_mode=auto)
+  .gitignore                    — excludes .env, *.json, *.zip, *.jpg, advisor*.txt
+  .gitattributes                — LF line endings
+
+### Docs
+  CLAUDE.md                     — project rules for Claude Code (READ FIRST)
+  ARCHITECTURE.md               — system design, DB schema, flow diagrams
+  ROADMAP.md                    — task list with [x] completion status
+  PROMPTS.md                    — task prompts for Claude Code
+  SETUP.md                      — Render + UptimeRobot + LINE + Supabase setup guide
+  DEV_LOG.txt                   — mandatory log of every task (7 entries so far)
+  HANDOFF.txt                   — THIS FILE
+
+### Tests (78 total, all passing)
+  tests/conftest.py             — sets all env vars before imports
+  tests/test_health.py          — 1 test
+  tests/test_gemini.py          — 9 tests (safe_parse + extract + extract_text)
+  tests/test_webhook.py         — 12 tests (routing: image/file/text/postback)
+  tests/test_repository.py      — 13 tests (all CRUD methods)
+  tests/test_drive.py           — 9 tests (build_filename, folder, upload)
+  tests/test_sheets.py          — 3 tests (append_receipt_row)
+  tests/test_postback.py        — 9 tests (confirm/cancel/edit handlers)
+  tests/test_text_entry.py      — 22 tests (parse_edit_command, coerce, text entry)
+
+
+================================================================================
+## ENVIRONMENT VARIABLES (all required except google_sa_json_b64 if using path)
+================================================================================
+
+LINE_CHANNEL_ACCESS_TOKEN   — from LINE Developers console
+LINE_CHANNEL_SECRET         — from LINE Developers console
+GEMINI_API_KEY              — from Google AI Studio
+GEMINI_MODEL                — default "gemini-2.0-flash"
+SUPABASE_URL                — https://xxx.supabase.co
+SUPABASE_SERVICE_KEY        — service_role key (not anon)
+GOOGLE_SA_JSON_PATH         — local: path to service account JSON file
+GOOGLE_SA_JSON_B64          — Render: base64-encoded service account JSON
+DRIVE_ROOT_FOLDER_ID        — Google Drive folder ID (share with SA email)
+SHEETS_SPREADSHEET_ID       — Google Sheet ID (share with SA email)
+
+
+================================================================================
+## DATABASE SCHEMA (create in Supabase SQL editor)
+================================================================================
+
+create table receipts (
+  id uuid primary key default gen_random_uuid(),
+  company_id uuid,
+  line_user_id text not null,
+  line_message_id text unique not null,
+  status text not null default 'pending',
+  vendor_name text, vendor_tax_id text, document_type text,
+  document_number text, issue_date date, category text,
+  subtotal numeric(14,2), vat_amount numeric(14,2),
+  wht_amount numeric(14,2), total_amount numeric(14,2),
+  currency text default 'THB', raw_text text, confidence real,
+  drive_file_id text, drive_file_url text,
+  sheet_row_synced boolean default false,
+  created_at timestamptz default now(), confirmed_at timestamptz
+);
+create index idx_receipts_user on receipts(line_user_id);
+create index idx_receipts_status on receipts(status);
+create index idx_receipts_date on receipts(issue_date);
+
+
+================================================================================
+## HOW TO RUN LOCALLY
+================================================================================
+
+1. cp .env.example .env  →  fill in all values
+2. pip install -r requirements.txt
+3. python -m pytest tests/ -v          # verify 78 tests pass
+4. uvicorn app.main:app --reload       # start dev server on :8000
+5. ngrok http 8000                     # expose to LINE webhook
+6. Set LINE webhook URL: https://{ngrok}.ngrok.io/webhook
+
+
+================================================================================
+## USER PREFERENCES (for Claude Code behavior)
+================================================================================
+
+- Push messages: ALLOWED when justified (e.g., reply token expired)
+- Non-zero cost: acceptable if clearly better approach
+- Start tasks immediately once context is understood
+- Follow ROADMAP.md task order strictly
+- Always update DEV_LOG.txt after each task (MANDATORY)
+- Update ROADMAP.md completion status after each task
+- Update memory and docs when new information is discovered
+
+================================================================================
+END OF HANDOFF
+================================================================================
