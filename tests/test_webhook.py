@@ -14,7 +14,7 @@ from app.line_client import format_receipt_summary
 from app.main import app
 from app.ocr.base import ReceiptData
 from linebot.v3.webhook import WebhookParser
-from linebot.v3.webhooks import FileMessageContent, ImageMessageContent, MessageEvent
+from linebot.v3.webhooks import FileMessageContent, ImageMessageContent, MessageEvent, PostbackEvent
 
 client = TestClient(app)
 
@@ -111,13 +111,19 @@ def test_webhook_image_message_queues_background_task():
     mock_event = MagicMock(spec=MessageEvent)
     mock_event.message = mock_msg
     mock_event.reply_token = "reply-token-abc"
+    mock_event.source = MagicMock()
+    mock_event.source.user_id = "user-123"
 
     resp, mock_add = _webhook_with_event(mock_event, body)
 
     assert resp.status_code == 200
     mock_add.assert_called_once()
     assert mock_add.call_args[0][0] is main_module._process_receipt
-    assert mock_add.call_args[1] == {"message_id": "msg-789", "reply_token": "reply-token-abc"}
+    assert mock_add.call_args[1] == {
+        "message_id": "msg-789",
+        "reply_token": "reply-token-abc",
+        "line_user_id": "user-123",
+    }
 
 
 def test_webhook_file_message_queues_background_task():
@@ -129,13 +135,41 @@ def test_webhook_file_message_queues_background_task():
     mock_event = MagicMock(spec=MessageEvent)
     mock_event.message = mock_msg
     mock_event.reply_token = "reply-token-xyz"
+    mock_event.source = MagicMock()
+    mock_event.source.user_id = "user-456"
 
     resp, mock_add = _webhook_with_event(mock_event, body)
 
     assert resp.status_code == 200
     mock_add.assert_called_once()
     assert mock_add.call_args[0][0] is main_module._process_receipt
-    assert mock_add.call_args[1] == {"message_id": "file-001", "reply_token": "reply-token-xyz"}
+    assert mock_add.call_args[1] == {
+        "message_id": "file-001",
+        "reply_token": "reply-token-xyz",
+        "line_user_id": "user-456",
+    }
+
+
+def test_webhook_postback_queues_handle_postback():
+    body = json.dumps({"destination": "test", "events": []}).encode()
+
+    mock_event = MagicMock(spec=PostbackEvent)
+    mock_event.postback = MagicMock()
+    mock_event.postback.data = f"action=confirm&id=receipt-123"
+    mock_event.reply_token = "reply-postback"
+
+    with patch("app.main.WebhookParser") as MockParser:
+        MockParser.return_value.parse.return_value = [mock_event]
+        with patch.object(BackgroundTasks, "add_task") as mock_add:
+            resp = client.post("/webhook", content=body, headers={"x-line-signature": _sig(body)})
+
+    assert resp.status_code == 200
+    mock_add.assert_called_once()
+    assert mock_add.call_args[0][0] is main_module._handle_postback
+    assert mock_add.call_args[1] == {
+        "data": "action=confirm&id=receipt-123",
+        "reply_token": "reply-postback",
+    }
 
 
 def test_webhook_non_image_message_skips():

@@ -7,9 +7,9 @@
 - [x] Task 0 — Bootstrap (scaffold, config, /health)
 - [x] Task 1 — OCR interface + Gemini
 - [x] Task 2 — LINE webhook + client (รับรูป, reply ข้อมูล)
-- [ ] Task 3 — Supabase repository (บันทึก pending)
-- [ ] Task 4 — Google Drive upload (เก็บต้นฉบับ)
-- [ ] Task 5 — Confirm flow + Google Sheets sync
+- [x] Task 3 — Supabase repository (บันทึก pending)
+- [x] Task 4 — Google Drive upload (เก็บต้นฉบับ)
+- [x] Task 5 — Confirm flow + Google Sheets sync
 - [ ] Task 6 — Edit flow + Natural language quick-entry (แก้ field / พิมพ์ "กาแฟ 65 บาท" โดยไม่ต้องส่งรูป)
 - [ ] Task 7 — Deploy prep (Render + UptimeRobot)
 

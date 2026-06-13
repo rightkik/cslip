@@ -43,6 +43,80 @@ NOTES: linebot.v3 split: WebhookParser in linebot.v3.webhook (singular),
        BackgroundTasks.add_task patched in tests (cleaner than awaiting AsyncMock across
        thread boundaries in TestClient).
 ========================================
+[2026-06-13 20:00] TASK: Task 5 - Confirmation flow + Google Sheets sync
+----------------------------------------
+WHAT: Implemented app/storage/sheets.py: append_receipt_row(ReceiptRecord) appends one row
+      (11 columns per ARCHITECTURE.md §7) to the configured spreadsheet via Sheets API v4,
+      asyncio.to_thread wrapper, same SA credential pattern as drive.py.
+      Added ReceiptRepository.get_by_id (needed to fetch full record for Sheets row).
+      Updated app/main.py:
+        - Switched _process_receipt to reply_receipt_confirmation (Quick Reply with
+          ยืนยัน/แก้ไข/ยกเลิก postback buttons) instead of plain reply_text.
+        - Added PostbackEvent handling in webhook router.
+        - _handle_postback: parses "action=confirm|cancel|edit&id=<uuid>", dispatches.
+        - _handle_confirm: get_by_id → update_status(confirmed) → reply "บันทึกแล้ว" →
+          append_receipt_row → mark_synced (Sheets sync after reply, non-fatal).
+        - _handle_cancel: update_status(rejected) → reply "ยกเลิกแล้ว".
+        - "edit" action: placeholder reply (Task 6).
+      Added 9 tests in test_postback.py, 3 in test_sheets.py, 1 in test_webhook.py,
+      2 in test_repository.py (52 total, all pass).
+WHY:  Sheets sync happens AFTER reply (CLAUDE.md reply ordering rule) — token expires in 30s.
+      Non-fatal Sheets failure: receipt stays confirmed in DB, sheet_row_synced=false allows
+      future retry (ARCHITECTURE.md §8 error handling).
+FILES: app/storage/sheets.py, app/db/repository.py (get_by_id), app/main.py,
+       tests/test_sheets.py, tests/test_postback.py, tests/test_webhook.py (updated),
+       tests/test_repository.py (updated)
+NOTES: PostbackContent.__fields__ = ['data', 'params'] (pydantic v1 style SDK).
+       urllib.parse.parse_qsl used for postback data parsing (handles URL-encoded strings).
+       _handle_confirm creates model_copy with confirmed status before passing to Sheets
+       (record fetched before update, so status field updated via model_copy).
+========================================
+[2026-06-13 19:00] TASK: Task 4 - Google Drive upload
+----------------------------------------
+WHAT: Implemented app/storage/drive.py using google-api-python-client service account.
+      Functions: _find_or_create_folder_sync, _upload_file_sync (both sync, wrapped in
+      asyncio.to_thread); ensure_folder_path(company, year, month) -> folder_id with
+      module-level _folder_cache to avoid redundant API calls; upload_file(bytes, name,
+      mime, folder_id) -> (file_id, web_view_url); build_filename(date, vendor, docnum, mime)
+      -> filename with _slugify (replaces non-word/hyphen/dot chars).
+      Added update_drive_info method to ReceiptRepository.
+      Wired app/main.py: after reply (token-safe), upload file to Drive under
+      root/default/{YYYY}/{MM}/, update receipt row with drive_file_id and drive_file_url.
+      Drive failure is non-fatal — receipt stays in DB, error is logged.
+      Added 9 tests in tests/test_drive.py and 1 test in tests/test_repository.py (37 total).
+WHY:  Drive upload must happen AFTER reply (per ARCHITECTURE.md §5) so LINE reply token
+      does not expire waiting for the upload. Non-fatal error handling for Drive ensures
+      user always receives OCR result even if Drive is unavailable.
+FILES: app/storage/drive.py, app/db/repository.py (update_drive_info), app/main.py,
+       tests/test_drive.py, tests/test_repository.py (updated)
+NOTES: google-api-python-client not installed locally — ran pip install.
+       googleapiclient.discovery.build uses cache_discovery=False to avoid writing to disk.
+       Folder cache key: "{parent_id}/{name}" — clears on process restart (acceptable
+       for single-user, no stale cache risk since Drive folder IDs don't change).
+       Module-level _drive_service singleton (reset to None in tests via autouse fixture).
+========================================
+[2026-06-13 18:00] TASK: Task 3 - Supabase repository
+----------------------------------------
+WHAT: Implemented app/db/models.py: ReceiptStatus (str Enum: pending/confirmed/rejected)
+      and ReceiptRecord Pydantic model matching the DB schema (all columns from ARCHITECTURE.md §3).
+      Implemented app/db/repository.py: ReceiptRepository class with injected AsyncClient;
+      methods: insert_pending, get_by_message_id (maybe_single for safe null return),
+      update_status, mark_synced, list_by_user_and_month.
+      Module-level _client singleton via _get_client() (lazy, async) + get_repository() factory.
+      Wired app/main.py: _process_receipt now takes line_user_id (from event.source.user_id,
+      fallback "unknown"); dedup check via get_by_message_id before processing; insert_pending
+      after OCR and before reply (per ARCHITECTURE.md §5 ordering).
+      Added 8 tests in tests/test_repository.py (all pass, 27 total).
+      Updated 2 tests in tests/test_webhook.py for new line_user_id parameter.
+WHY:  Dedup by messageId prevents double-processing on LINE webhook redelivery (CLAUDE.md rule 5).
+      Inserting pending before reply keeps the row in DB even if reply fails later.
+      Constructor injection of AsyncClient keeps tests fast (no real network calls).
+FILES: app/db/models.py, app/db/repository.py, app/main.py,
+       tests/test_repository.py, tests/test_webhook.py (updated)
+NOTES: supabase 2.31.0 async: acreate_client / AsyncClient. postgrest-py maybe_single()
+       returns data=None (not empty list) when no rows — handled in get_by_message_id.
+       Decimal fields serialized as float for Supabase JSON; Pydantic v2 re-coerces on read.
+========================================
 [2026-06-13 15:00] TASK: Task 1 - OCR interface + Gemini
 ----------------------------------------
 WHAT: Implemented ReceiptData pydantic model and OCRProvider abstract base in app/ocr/base.py.
