@@ -75,6 +75,7 @@ class GeminiOCR(OCRProvider):
                 config=types.GenerateContentConfig(
                     system_instruction=_SYSTEM_PROMPT,
                     response_mime_type="application/json",
+                    thinking_config=types.ThinkingConfig(thinking_budget=0),
                 ),
             )
             raw = response.text or ""
@@ -93,6 +94,7 @@ class GeminiOCR(OCRProvider):
                 config=types.GenerateContentConfig(
                     system_instruction=_TEXT_PROMPT,
                     response_mime_type="application/json",
+                    thinking_config=types.ThinkingConfig(thinking_budget=0),
                 ),
             )
             data = _safe_parse(response.text or "")

@@ -11,7 +11,7 @@
 - [x] Task 4 — Google Drive upload (เก็บต้นฉบับ)
 - [x] Task 5 — Confirm flow + Google Sheets sync
 - [x] Task 6 — Edit flow + Natural language quick-entry (แก้ field / พิมพ์ "กาแฟ 65 บาท" โดยไม่ต้องส่งรูป)
-- [ ] Task 7 — Deploy prep (Render + UptimeRobot)
+- [x] Task 7 — Deploy prep (Render + UptimeRobot)
 
 **เกณฑ์ผ่าน Phase 1:** ส่งรูปใบเสร็จเข้า LINE → bot ตอบข้อมูลที่อ่านได้ → กดยืนยัน →
 ไฟล์ขึ้น Drive + แถวขึ้น Sheet + record ใน DB เป็น confirmed

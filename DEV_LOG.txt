@@ -160,3 +160,40 @@ NOTES: google-genai 2.8.0 async path is client.aio.models.generate_content (conf
        introspection). Decimal/date fields auto-coerced by Pydantic v2 from float/string.
        App title changed to "Cslip" in app/main.py.
 ========================================
+[2026-06-13 00:00] TASK: Task 7 - Deploy prep (Render)
+----------------------------------------
+WHAT: Created Procfile and render.yaml for Render free-tier deployment.
+      Procfile: "web: uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+      render.yaml: defines web service, buildCommand, startCommand, healthCheckPath=/health,
+      and all required env var keys (sync:false for secrets, value set for GEMINI_MODEL default).
+      Verified GOOGLE_SA_JSON_B64 decode is already handled inline in drive.py and sheets.py
+      (both call Credentials.from_service_account_info after base64.b64decode) — no startup
+      event or tempfile workaround needed.
+WHY:  Render (not Railway/Cloud Run) is the target host per CLAUDE.md and SETUP.md.
+      BackgroundTasks keep running after HTTP response on Render — critical for the async
+      webhook pattern (reply first, then Drive upload). Procfile is the minimal deploy signal;
+      render.yaml makes the service reproducible as infra-as-code.
+FILES: Procfile (new), render.yaml (new), ROADMAP.md (Task 7 marked [x])
+NOTES: Phase 1 MVP complete. Next step: ngrok local test end-to-end, then Render deploy.
+       UptimeRobot ping setup documented in SETUP.md (pings /health every 5 min to prevent
+       free-tier sleep). GOOGLE_SA_JSON_PATH not included in render.yaml — Render deployments
+       should always use GOOGLE_SA_JSON_B64 (path-based credential won't survive ephemeral FS).
+========================================
+[2026-06-14 00:00] TASK: Gemini model upgrade + setup progress
+----------------------------------------
+WHAT: Upgraded Gemini model from gemini-2.0-flash to gemini-2.5-flash in .env.example
+      and render.yaml. Added thinkingBudget=0 to both GeminiOCR.extract() and
+      extract_text() calls in app/ocr/gemini.py to disable auto thinking mode.
+      Setup progress: LINE channel secret obtained, Gemini API key set in .env,
+      Supabase URL + service key set in .env, receipts table created via SQL Editor.
+      Google Cloud Service Account setup in progress (not yet complete).
+WHY:  CommentScope project found gemini-2.0-flash routes to gemini-2.5-flash quota bucket
+      silently; explicit model name avoids confusion. thinkingBudget=0 needed because
+      2.5-flash enables extended thinking by default (~45-60s latency) which is wasteful
+      for structured data extraction like OCR. Lesson from CommentScope SESSION 7+11.
+FILES: app/ocr/gemini.py, .env.example, render.yaml
+NOTES: Still need LINE Channel access token (LINE Developers Console, not OA Manager).
+       Google Cloud remaining: enable Drive+Sheets APIs, create SA, download JSON key,
+       share Drive folder + Sheet with SA email, get DRIVE_ROOT_FOLDER_ID + SHEETS_SPREADSHEET_ID.
+       After that: convert SA JSON to base64 for GOOGLE_SA_JSON_B64, then local ngrok test.
+========================================
