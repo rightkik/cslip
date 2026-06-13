@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 
 from fastapi import FastAPI
 
-app = FastAPI(title="Paypers-DIY", version="0.1.0")
+app = FastAPI(title="Cslip", version="0.1.0")
 
 
 @app.get("/health")

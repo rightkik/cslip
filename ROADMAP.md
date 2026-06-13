@@ -5,7 +5,7 @@
 ## Phase 1 — MVP (เป้า: ส่งรูป → ได้ข้อมูล → บันทึกครบ 3 ที่)
 
 - [x] Task 0 — Bootstrap (scaffold, config, /health)
-- [ ] Task 1 — OCR interface + Gemini
+- [x] Task 1 — OCR interface + Gemini
 - [ ] Task 2 — LINE webhook + client (รับรูป, reply ข้อมูล)
 - [ ] Task 3 — Supabase repository (บันทึก pending)
 - [ ] Task 4 — Google Drive upload (เก็บต้นฉบับ)

@@ -21,3 +21,20 @@ NOTES: FastAPI 0.136.3 (newer than spec'd >=0.111) requires httpx2 for TestClien
        Python on this machine is 3.13.13 (spec says 3.11+ — compatible).
        GOOGLE_SA_JSON_B64 decode logic deferred to Task 7 (deploy prep) as per PROMPTS.md.
 ========================================
+========================================
+[2026-06-13 15:00] TASK: Task 1 - OCR interface + Gemini
+----------------------------------------
+WHAT: Implemented ReceiptData pydantic model and OCRProvider abstract base in app/ocr/base.py.
+      Implemented GeminiOCR in app/ocr/gemini.py using google-genai 2.8.0 SDK with
+      client.aio.models.generate_content (async), response_mime_type="application/json".
+      Added _safe_parse() with regex to strip markdown code fences before json.loads.
+      Added 8 tests in tests/test_gemini.py covering: parse variants, successful extraction,
+      code-fence response, and error propagation. All 9 tests pass.
+WHY:  OCR behind OCRProvider interface so provider can be swapped (Claude, etc.) without
+      touching webhook handlers (CLAUDE.md rule 4). _safe_parse fallback needed because
+      Gemini occasionally wraps JSON in code fences despite response_mime_type setting.
+FILES: app/ocr/base.py, app/ocr/gemini.py, tests/test_gemini.py
+NOTES: google-genai 2.8.0 async path is client.aio.models.generate_content (confirmed via
+       introspection). Decimal/date fields auto-coerced by Pydantic v2 from float/string.
+       App title changed to "Cslip" in app/main.py.
+========================================
