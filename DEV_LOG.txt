@@ -1,0 +1,23 @@
+========================================
+[2026-06-13 14:30] TASK: Task 0 - Bootstrap
+----------------------------------------
+WHAT: Scaffolded full project structure. Created requirements.txt, .env.example,
+      pyproject.toml, app/config.py (pydantic-settings with @lru_cache), app/main.py
+      (FastAPI + GET /health), and stub files for all modules (ocr, storage, db, documents).
+      Added tests/conftest.py (env patch before imports) and tests/test_health.py.
+      All 1 tests pass, 0 warnings.
+WHY:  Clean scaffold ensures every subsequent task has the correct import paths and
+      structure from the start. Config uses get_settings() + @lru_cache so tests can
+      patch env vars before the Settings object is constructed.
+FILES: requirements.txt, .env.example, pyproject.toml,
+       app/__init__.py, app/config.py, app/main.py, app/line_client.py,
+       app/ocr/__init__.py, app/ocr/base.py, app/ocr/gemini.py,
+       app/storage/__init__.py, app/storage/drive.py, app/storage/sheets.py,
+       app/db/__init__.py, app/db/models.py, app/db/repository.py,
+       app/documents/__init__.py, app/documents/voucher.py,
+       tests/__init__.py, tests/conftest.py, tests/test_health.py
+NOTES: FastAPI 0.136.3 (newer than spec'd >=0.111) requires httpx2 for TestClient;
+       added httpx2>=2.4.0 alongside httpx to requirements.txt.
+       Python on this machine is 3.13.13 (spec says 3.11+ — compatible).
+       GOOGLE_SA_JSON_B64 decode logic deferred to Task 7 (deploy prep) as per PROMPTS.md.
+========================================
