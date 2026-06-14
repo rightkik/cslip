@@ -31,7 +31,7 @@ def _get_service():
 def _append_row_sync(service, spreadsheet_id: str, row: list) -> None:
     service.spreadsheets().values().append(
         spreadsheetId=spreadsheet_id,
-        range="Sheet1!A:K",
+        range="Sheet1!A:L",
         valueInputOption="USER_ENTERED",
         body={"values": [row]},
     ).execute()
@@ -41,12 +41,16 @@ async def append_receipt_row(record: ReceiptRecord) -> None:
     """Append one confirmed receipt row to the configured Google Sheet.
 
     Columns: วันที่ | ID | ผู้ขาย | เลขผู้เสียภาษี | ประเภท | หมวดหมู่ |
-             ยอดก่อนภาษี | VAT | WHT | ยอดสุทธิ | ลิงก์ไฟล์
+             ยอดก่อนภาษี | VAT | WHT | ยอดสุทธิ | ลิงก์ไฟล์ | บันทึกเมื่อ
     """
     spreadsheet_id = get_settings().sheets_spreadsheet_id
 
     def _fmt(val) -> str:
         return f"{val:,.2f}" if val is not None else ""
+
+    created_str = (
+        record.created_at.strftime("%Y-%m-%d %H:%M") if record.created_at else ""
+    )
 
     row = [
         str(record.issue_date) if record.issue_date else "",
@@ -60,6 +64,7 @@ async def append_receipt_row(record: ReceiptRecord) -> None:
         _fmt(record.wht_amount),
         _fmt(record.total_amount),
         record.drive_file_url or "",
+        created_str,
     ]
 
     def _sync() -> None:
