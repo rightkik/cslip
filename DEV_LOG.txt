@@ -244,6 +244,25 @@ NOTES: LINE OA auto-reply must be disabled via manager.line.biz → Chat setting
        Bot end-to-end retest pending after auto-reply is disabled.
 ========================================
 ========================================
+[2026-06-14 22:30] TASK: Text quick-entry fixes + created_at in Sheet
+----------------------------------------
+WHAT: Three fixes applied:
+  1. Text quick-entry (typing e.g. "ทุเรียน 180 บาท") now defaults issue_date=date.today()
+     and document_type="other" when Gemini returns null for those fields.
+     Fixed in _handle_text_entry (app/main.py) via model_copy after extract_text call.
+  2. confirmed created_at timestamptz DEFAULT now() already existed in Supabase schema
+     and ReceiptRecord model — no DB change needed, it has been recording silently.
+  3. Added created_at as column L ("บันทึกเมื่อ") to Google Sheets sync (sheets.py).
+     Format: YYYY-MM-DD HH:MM. Range updated from A:K to A:L.
+WHY:  Text entries had no receipt document so issue_date was always null — defaulting to
+      today makes the record immediately useful for filtering/reporting.
+      document_type="other" distinguishes text entries from scanned documents in the Sheet.
+      created_at in Sheet lets user see exactly when each expense was submitted.
+FILES: app/main.py, app/storage/sheets.py
+NOTES: image OCR entries keep issue_date=null when Gemini cannot read the date — intentional,
+       null signals unreadable rather than "today". created_at always fills automatically.
+========================================
+========================================
 [2026-06-14 22:00] TASK: Phase 1 MVP — verified complete
 ----------------------------------------
 WHAT: Confirmed all Phase 1 acceptance criteria met:
