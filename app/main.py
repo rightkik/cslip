@@ -111,7 +111,7 @@ def _record_to_data(record: ReceiptRecord) -> ReceiptData:
 # FastAPI app
 # ---------------------------------------------------------------------------
 
-@app.get("/health")
+@app.api_route("/health", methods=["GET", "HEAD"])
 async def health():
     return {"status": "ok", "timestamp": datetime.now(timezone.utc).isoformat()}
 
