@@ -242,6 +242,13 @@ async def _handle_text_entry(text: str, reply_token: str, line_user_id: str) -> 
         if data.total_amount is None and data.vendor_name is None:
             await reply_text(reply_token, "ไม่เข้าใจคำสั่ง ลองพิมพ์ เช่น 'กาแฟ 65 บาท' หรือ 'ค่า Figma 590' 🙏")
             return
+        updates: dict = {}
+        if data.issue_date is None:
+            updates["issue_date"] = date.today()
+        if data.document_type is None:
+            updates["document_type"] = "other"
+        if updates:
+            data = data.model_copy(update=updates)
         repo = await get_repository()
         message_id = f"text:{uuid.uuid4()}"
         receipt_id = await repo.insert_pending(data, line_user_id, message_id)
