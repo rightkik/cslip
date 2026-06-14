@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from datetime import timedelta, timezone
 
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
@@ -48,8 +49,9 @@ async def append_receipt_row(record: ReceiptRecord) -> None:
     def _fmt(val) -> str:
         return f"{val:,.2f}" if val is not None else ""
 
+    _BKK = timezone(timedelta(hours=7))
     created_str = (
-        record.created_at.strftime("%Y-%m-%d %H:%M") if record.created_at else ""
+        record.created_at.astimezone(_BKK).strftime("%Y-%m-%d %H:%M") if record.created_at else ""
     )
 
     row = [
