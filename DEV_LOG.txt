@@ -243,3 +243,20 @@ FILES: app/main.py (/health decorator change), commit 73c9a80
 NOTES: LINE OA auto-reply must be disabled via manager.line.biz → Chat settings → Response settings.
        Bot end-to-end retest pending after auto-reply is disabled.
 ========================================
+========================================
+[2026-06-14 22:00] TASK: Phase 1 MVP — verified complete
+----------------------------------------
+WHAT: Confirmed all Phase 1 acceptance criteria met:
+      1. LINE OA auto-reply disabled (manager.line.biz → Chat settings → Response settings).
+      2. UptimeRobot monitor green — /health now accepts HEAD requests (commit 73c9a80),
+         service stays warm, no cold-start timeout.
+      3. End-to-end test passed on production Render deployment:
+         send receipt photo via LINE → Gemini OCR → insert Supabase → reply confirmation →
+         Drive upload → user confirms → Sheets sync → status confirmed in DB.
+WHY:  Phase 1 goal was a fully working self-hosted receipt manager at ~0 THB/month.
+      All free-tier services (Render, Supabase, Google Drive/Sheets, Gemini, LINE free reply)
+      are operational. No paid services required.
+FILES: —
+NOTES: Phase 2 (PDF vouchers, web dashboard, multi-company) deferred — start when needed.
+       GitHub: rightkik/cslip, production: https://cslip.onrender.com
+========================================
