@@ -226,3 +226,20 @@ NOTES: End-to-end test passed: LINE -> OCR (Gemini) -> Supabase -> Drive upload 
        confirm -> Sheets sync. All working locally with ngrok.
        Next: deploy to Render, set env vars in Render dashboard.
 ========================================
+========================================
+[2026-06-14 21:00] TASK: UptimeRobot keep-alive + /health HEAD fix
+----------------------------------------
+WHAT: Set up UptimeRobot free monitor to ping https://cslip.onrender.com/health every 5 minutes
+      to prevent Render free tier from sleeping.
+      UptimeRobot reported 405 Method Not Allowed on the first check — root cause: UptimeRobot
+      sends HEAD requests by default, but the /health endpoint was declared with @app.get which
+      only registers GET. Fixed by changing decorator to @app.api_route("/health", methods=["GET","HEAD"]).
+      Also discovered LINE OA default auto-reply ("ขอบคุณที่ส่งข้อความถึงเรา...") is still enabled
+      and interferes with bot responses — needs to be disabled in LINE OA Manager.
+WHY:  Render free tier sleeps after 15 min of inactivity. LINE webhook has a short timeout so a
+      cold-start (~30-60s) causes webhook delivery failure. UptimeRobot pinging /health every 5 min
+      keeps the service warm. HEAD support is required because UptimeRobot HTTP(s) monitors use HEAD.
+FILES: app/main.py (/health decorator change), commit 73c9a80
+NOTES: LINE OA auto-reply must be disabled via manager.line.biz → Chat settings → Response settings.
+       Bot end-to-end retest pending after auto-reply is disabled.
+========================================
