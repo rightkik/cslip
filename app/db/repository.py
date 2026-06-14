@@ -92,7 +92,7 @@ class ReceiptRepository:
             .maybe_single()
             .execute()
         )
-        if result.data is None:
+        if result is None or result.data is None:
             return None
         return ReceiptRecord.model_validate(result.data)
 
@@ -104,7 +104,7 @@ class ReceiptRepository:
             .maybe_single()
             .execute()
         )
-        if result.data is None:
+        if result is None or result.data is None:
             return None
         return ReceiptRecord.model_validate(result.data)
 

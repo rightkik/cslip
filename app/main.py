@@ -1,6 +1,11 @@
+import asyncio
 import logging
+import sys
 import urllib.parse
 import uuid
+
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 from datetime import date, datetime, timezone
 from decimal import Decimal, InvalidOperation
 

@@ -197,3 +197,32 @@ NOTES: Still need LINE Channel access token (LINE Developers Console, not OA Man
        share Drive folder + Sheet with SA email, get DRIVE_ROOT_FOLDER_ID + SHEETS_SPREADSHEET_ID.
        After that: convert SA JSON to base64 for GOOGLE_SA_JSON_B64, then local ngrok test.
 ========================================
+========================================
+[2026-06-14 00:00] TASK: Local end-to-end test + OAuth2 migration
+----------------------------------------
+WHAT: Completed local ngrok test. Fixed several bugs discovered during testing:
+      1. repository.py get_by_id/get_by_message_id: maybe_single() returns None (not obj with .data=None)
+         when no record found — fixed to check `result is None or result.data is None`.
+      2. app/main.py: added WindowsSelectorEventLoopPolicy for Windows dev (aiodns DNS issue).
+         Uninstalled aiodns so aiohttp falls back to ThreadedResolver on Windows.
+      3. Switched Google auth from Service Account to OAuth2 refresh token:
+         - SA cannot upload to personal Google Drive (no storage quota).
+         - Shared Drives require Google Workspace (paid) — not available on free Gmail.
+         - Solution: OAuth2 Desktop app flow, one-time authorization, refresh token stored in env.
+      4. drive.py / sheets.py: replaced SA Credentials with google.oauth2.credentials.Credentials
+         using client_id, client_secret, refresh_token. Added supportsAllDrives=True to all
+         Drive API calls (future-proofing if Shared Drive is ever used).
+      5. config.py: replaced google_sa_json_path/google_sa_json_b64 with
+         google_client_id, google_client_secret, google_refresh_token.
+      6. .env.example updated to reflect OAuth2 approach.
+      7. GCP project: gen-lang-client-0620550147 (ccsonytv@gmail.com).
+         OAuth2 client: cslip-desktop (Desktop app type).
+WHY:  Service Account + personal Drive = storageQuotaExceeded (403). OAuth2 user credentials
+      make uploaded files owned by the user (ccsonytv@gmail.com) → uses user's 15GB quota.
+      This is the correct pattern for single-user personal Drive access.
+FILES: app/db/repository.py, app/main.py, app/storage/drive.py, app/storage/sheets.py,
+       app/config.py, .env.example, get_refresh_token.py (local helper, not deployed)
+NOTES: End-to-end test passed: LINE -> OCR (Gemini) -> Supabase -> Drive upload -> reply ->
+       confirm -> Sheets sync. All working locally with ngrok.
+       Next: deploy to Render, set env vars in Render dashboard.
+========================================

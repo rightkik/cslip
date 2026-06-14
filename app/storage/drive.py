@@ -1,11 +1,9 @@
 import asyncio
-import base64
 import io
-import json
 import logging
 import re
 
-from google.oauth2.service_account import Credentials
+from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
 
@@ -22,13 +20,13 @@ def _get_service():
     global _drive_service
     if _drive_service is None:
         settings = get_settings()
-        if settings.google_sa_json_path:
-            creds = Credentials.from_service_account_file(settings.google_sa_json_path, scopes=_SCOPES)
-        elif settings.google_sa_json_b64:
-            sa_info = json.loads(base64.b64decode(settings.google_sa_json_b64))
-            creds = Credentials.from_service_account_info(sa_info, scopes=_SCOPES)
-        else:
-            raise ValueError("Set GOOGLE_SA_JSON_PATH (local) or GOOGLE_SA_JSON_B64 (deploy)")
+        creds = Credentials(
+            token=None,
+            refresh_token=settings.google_refresh_token,
+            client_id=settings.google_client_id,
+            client_secret=settings.google_client_secret,
+            token_uri="https://oauth2.googleapis.com/token",
+        )
         _drive_service = build("drive", "v3", credentials=creds, cache_discovery=False)
     return _drive_service
 
@@ -44,7 +42,7 @@ def _find_or_create_folder_sync(service, name: str, parent_id: str) -> str:
         f"name='{escaped}' and mimeType='application/vnd.google-apps.folder' "
         f"and '{parent_id}' in parents and trashed=false"
     )
-    res = service.files().list(q=q, fields="files(id)", pageSize=1).execute()
+    res = service.files().list(q=q, fields="files(id)", pageSize=1, supportsAllDrives=True, includeItemsFromAllDrives=True).execute()
     files = res.get("files", [])
     if files:
         return files[0]["id"]
@@ -53,7 +51,7 @@ def _find_or_create_folder_sync(service, name: str, parent_id: str) -> str:
         "mimeType": "application/vnd.google-apps.folder",
         "parents": [parent_id],
     }
-    folder = service.files().create(body=meta, fields="id").execute()
+    folder = service.files().create(body=meta, fields="id", supportsAllDrives=True).execute()
     return folder["id"]
 
 
@@ -62,7 +60,7 @@ def _upload_file_sync(
 ) -> tuple[str, str]:
     media = MediaIoBaseUpload(io.BytesIO(file_bytes), mimetype=mime_type, resumable=False)
     meta = {"name": filename, "parents": [folder_id]}
-    result = service.files().create(body=meta, media_body=media, fields="id,webViewLink").execute()
+    result = service.files().create(body=meta, media_body=media, fields="id,webViewLink", supportsAllDrives=True).execute()
     return result["id"], result.get("webViewLink", "")
 
 

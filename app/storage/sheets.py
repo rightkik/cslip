@@ -1,9 +1,7 @@
 import asyncio
-import base64
-import json
 import logging
 
-from google.oauth2.service_account import Credentials
+from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 
 from app.config import get_settings
@@ -19,13 +17,13 @@ def _get_service():
     global _sheets_service
     if _sheets_service is None:
         settings = get_settings()
-        if settings.google_sa_json_path:
-            creds = Credentials.from_service_account_file(settings.google_sa_json_path, scopes=_SCOPES)
-        elif settings.google_sa_json_b64:
-            sa_info = json.loads(base64.b64decode(settings.google_sa_json_b64))
-            creds = Credentials.from_service_account_info(sa_info, scopes=_SCOPES)
-        else:
-            raise ValueError("Set GOOGLE_SA_JSON_PATH (local) or GOOGLE_SA_JSON_B64 (deploy)")
+        creds = Credentials(
+            token=None,
+            refresh_token=settings.google_refresh_token,
+            client_id=settings.google_client_id,
+            client_secret=settings.google_client_secret,
+            token_uri="https://oauth2.googleapis.com/token",
+        )
         _sheets_service = build("sheets", "v4", credentials=creds, cache_discovery=False)
     return _sheets_service
 

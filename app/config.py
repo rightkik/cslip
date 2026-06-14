@@ -16,11 +16,10 @@ class Settings(BaseSettings):
     supabase_url: str
     supabase_service_key: str
 
-    # Google Service Account — provide exactly one
-    # GOOGLE_SA_JSON_PATH: local file path (dev)
-    # GOOGLE_SA_JSON_B64: base64-encoded JSON (Render deployment) — decoded in Task 7
-    google_sa_json_path: str | None = None
-    google_sa_json_b64: str | None = None
+    # Google OAuth2 credentials
+    google_client_id: str
+    google_client_secret: str
+    google_refresh_token: str
 
     # Google Drive + Sheets
     drive_root_folder_id: str
