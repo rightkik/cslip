@@ -279,3 +279,52 @@ FILES: —
 NOTES: Phase 2 (PDF vouchers, web dashboard, multi-company) deferred — start when needed.
        GitHub: rightkik/cslip, production: https://cslip.onrender.com
 ========================================
+========================================
+[2026-06-15 00:00] TASK: P2-B — Dashboard web (Next.js 16 + Vercel)
+----------------------------------------
+WHAT: Scaffolded /dashboard as a separate Next.js 16 App Router project (TypeScript + Tailwind CSS).
+      Deployed separately to Vercel (Root Directory = "dashboard"). Key decisions and implementations:
+
+  Auth:
+  - NextAuth.js v5 (beta) with Google OAuth provider.
+  - ADMIN_EMAILS env var (comma-separated) controls who can sign in. Currently ccsonytv@gmail.com.
+  - Signed-in admin sees ALL confirmed receipts. Non-admin hook is prepared (TODO comment in page).
+  - Multi-user path: future google_email → line_user_id mapping table; dashboard filters by email.
+  - proxy.ts (not middleware.ts — Next.js 16 renamed the convention) handles auth redirect.
+
+  Data access:
+  - Supabase client uses SUPABASE_SERVICE_ROLE_KEY (server-only, no NEXT_PUBLIC_ prefix).
+  - All Supabase queries run in Server Components — key never reaches the browser.
+  - Queries only return status='confirmed' receipts.
+
+  UI:
+  - Summary cards: total_amount, VAT total, count for current filter.
+  - Filter bar (client component): month picker (24-month window), category dropdown, clear button.
+  - Receipts table: date, vendor, category badge, doc type, subtotal, VAT, total, Drive link.
+  - CSV export: client-side BOM-prefixed CSV (Excel Thai compatibility), filename includes filter context.
+
+  Next.js 16 breaking changes applied:
+  - middleware.ts → proxy.ts; named export `proxy` (not `middleware`).
+  - searchParams in page.tsx is async (await searchParams).
+  - No use of deprecated experimental.turbopack / ppr / useCache flags.
+
+WHY:  Phase 2 goal: give users a browser-based view of their confirmed receipts without exposing
+      raw Supabase credentials. Google OAuth was chosen over shared password because the roadmap
+      targets multi-user support (P2-C). Free tier: Vercel (free) + NextAuth (open source).
+
+FILES: dashboard/ (entire new folder)
+       dashboard/.env.example (new env vars: NEXTAUTH_SECRET, NEXTAUTH_URL, GOOGLE_CLIENT_ID,
+         GOOGLE_CLIENT_SECRET, ADMIN_EMAILS, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+       dashboard/auth.ts, dashboard/proxy.ts, dashboard/lib/supabase.ts
+       dashboard/app/receipts/page.tsx, dashboard/components/*
+
+NOTES:
+  - To deploy: push to GitHub, create new Vercel project, set Root Directory = "dashboard",
+    add all env vars from dashboard/.env.example, add OAuth redirect URI to GCP console:
+    https://your-dashboard.vercel.app/api/auth/callback/google
+  - SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY: copy from Supabase project settings → API.
+  - NEXTAUTH_SECRET: generate with `openssl rand -base64 32`
+  - Vercel project needs to be separate from the FastAPI backend (different language/runtime).
+  - P2-C (multi-user): when ready, add users table (google_email, line_user_id, created_at),
+    update receipts page to filter by session.user.email for non-admin users.
+========================================
