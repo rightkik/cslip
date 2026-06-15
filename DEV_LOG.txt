@@ -328,3 +328,51 @@ NOTES:
   - P2-C (multi-user): when ready, add users table (google_email, line_user_id, created_at),
     update receipts page to filter by session.user.email for non-admin users.
 ========================================
+========================================
+[2026-06-15 22:30] TASK: P2-B Dashboard — Vercel deployment + env var debugging
+----------------------------------------
+WHAT: Deployed /dashboard to Vercel (https://cslip-dashboard.vercel.app). Several issues
+      encountered and resolved during deployment:
+
+  1. NextAuth v5 uses AUTH_SECRET (not NEXTAUTH_SECRET)
+     NextAuth v5 beta renamed the env var. Set AUTH_SECRET in Vercel in addition to
+     NEXTAUTH_SECRET. Symptom: [auth][error] MissingSecret on every request.
+
+  2. Next.js 16 renamed middleware.ts → proxy.ts
+     Named export must be `proxy` (not `middleware`). Used NextAuth v5 callback pattern:
+     `export const proxy = auth((req) => { ... })` so req.auth is available.
+
+  3. PowerShell pipe adds BOM (U+FEFF) to env var values
+     All vars set via `$value | vercel env add VAR` had BOM prepended. Caused:
+     - NEXTAUTH_URL: ERR_INVALID_URL (BOM in URL string)
+     - GOOGLE_CLIENT_SECRET: "The provided client secret is invalid"
+     - SUPABASE_SERVICE_ROLE_KEY: silent empty query results
+     Fix: delete and re-add every var using `--value` flag instead of pipe.
+
+  4. Vercel env vars set for `production` only (not `preview`)
+     Preview deployments used for testing couldn't see env vars. Fixed by deploying
+     directly to production with `vercel --prod` once all vars were corrected.
+
+  5. Google OAuth client type mismatch
+     Existing GOOGLE_CLIENT_ID in .env is "Desktop app" type (for Drive/Sheets refresh
+     token flow). NextAuth requires "Web application" type. Created new OAuth client
+     in GCP console (same project gen-lang-client-0620550147), added redirect URI:
+     https://cslip-dashboard.vercel.app/api/auth/callback/google
+
+WHY:  Each issue was a one-time setup problem, not a code bug. BOM issue is specific to
+      PowerShell piping to native CLIs — use --value flag for all future vercel env add.
+
+FILES: dashboard/.vercel/ (Vercel project link, gitignored)
+VERCEL ENV VARS (all set with --value flag, production environment):
+  AUTH_SECRET, NEXTAUTH_URL, ADMIN_EMAILS, SUPABASE_URL,
+  SUPABASE_SERVICE_ROLE_KEY, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
+
+NOTES:
+  - Dashboard live at https://cslip-dashboard.vercel.app
+  - Login: ccsonytv@gmail.com only (ADMIN_EMAILS gate)
+  - Shows all confirmed receipts, filter by month/category, CSV export
+  - P2-B complete. Next: P2-A (PDF vouchers) or P2-C (multi-user)
+  - LESSON: When using PowerShell pipe to vercel CLI, always use --value flag to
+    avoid BOM corruption. This applies to any native CLI that is sensitive to
+    leading bytes in its input.
+========================================
