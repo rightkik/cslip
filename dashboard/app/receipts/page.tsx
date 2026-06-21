@@ -21,7 +21,6 @@ export default async function ReceiptsPage({ searchParams }: { searchParams: Sea
     .from("receipts")
     .select("*")
     .eq("status", "confirmed")
-    .order("issue_date", { ascending: false })
     .order("created_at", { ascending: false })
 
   if (month) {

@@ -1,8 +1,11 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useMemo, useState, useTransition } from "react"
 import type { Receipt } from "@/lib/supabase"
 import { deleteReceipts } from "@/app/receipts/actions"
+
+type SortField = "created_at" | "issue_date"
+type SortDir = "asc" | "desc"
 
 const DOC_TYPE_LABEL: Record<string, string> = {
   tax_invoice: "ใบกำกับภาษี",
@@ -25,10 +28,35 @@ function fmtDate(iso: string | null) {
   return d.toLocaleDateString("th-TH", { timeZone: "Asia/Bangkok", year: "numeric", month: "2-digit", day: "2-digit" })
 }
 
+function SortIcon({ field, sortField, sortDir }: { field: SortField; sortField: SortField; sortDir: SortDir }) {
+  if (field !== sortField) return <span className="ml-1 text-gray-300">↕</span>
+  return <span className="ml-1">{sortDir === "asc" ? "↑" : "↓"}</span>
+}
+
 export function ReceiptsTable({ receipts }: { receipts: Receipt[] }) {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [isPending, startTransition] = useTransition()
   const [showConfirm, setShowConfirm] = useState(false)
+  const [sortField, setSortField] = useState<SortField>("created_at")
+  const [sortDir, setSortDir] = useState<SortDir>("desc")
+
+  function toggleSort(field: SortField) {
+    if (sortField === field) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"))
+    } else {
+      setSortField(field)
+      setSortDir("desc")
+    }
+  }
+
+  const sorted = useMemo(() => {
+    return [...receipts].sort((a, b) => {
+      const av = a[sortField] ?? ""
+      const bv = b[sortField] ?? ""
+      const cmp = av < bv ? -1 : av > bv ? 1 : 0
+      return sortDir === "asc" ? cmp : -cmp
+    })
+  }, [receipts, sortField, sortDir])
 
   const allSelected = receipts.length > 0 && selected.size === receipts.length
 
@@ -137,8 +165,18 @@ export function ReceiptsTable({ receipts }: { receipts: Receipt[] }) {
                     className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
                   />
                 </th>
-                <th className="px-4 py-3 text-left font-medium">วันที่เพิ่ม</th>
-                <th className="px-4 py-3 text-left font-medium">วันที่ใบเสร็จ</th>
+                <th
+                  className="px-4 py-3 text-left font-medium cursor-pointer select-none hover:text-gray-800 transition"
+                  onClick={() => toggleSort("created_at")}
+                >
+                  วันที่เพิ่ม<SortIcon field="created_at" sortField={sortField} sortDir={sortDir} />
+                </th>
+                <th
+                  className="px-4 py-3 text-left font-medium cursor-pointer select-none hover:text-gray-800 transition"
+                  onClick={() => toggleSort("issue_date")}
+                >
+                  วันที่ใบเสร็จ<SortIcon field="issue_date" sortField={sortField} sortDir={sortDir} />
+                </th>
                 <th className="px-4 py-3 text-left font-medium">ผู้ขาย</th>
                 <th className="px-4 py-3 text-left font-medium">หมวดหมู่</th>
                 <th className="px-4 py-3 text-left font-medium">ประเภท</th>
@@ -149,7 +187,7 @@ export function ReceiptsTable({ receipts }: { receipts: Receipt[] }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {receipts.map((r) => (
+              {sorted.map((r) => (
                 <tr
                   key={r.id}
                   className={`hover:bg-gray-50 transition-colors ${selected.has(r.id) ? "bg-blue-50/50" : ""}`}
