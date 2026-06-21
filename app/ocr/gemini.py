@@ -1,6 +1,7 @@
 import json
 import logging
 import re
+from datetime import date
 
 from google import genai
 from google.genai import types
@@ -51,7 +52,9 @@ fences, no commentary. If a field is unknown, use null.
 Rules:
 - Amounts are numbers without separators or currency symbols (e.g. 1605.00).
 - issue_date: ISO 8601 "YYYY-MM-DD". Convert Thai Buddhist year (พ.ศ.) by subtracting 543.
+- Thai documents use DD/MM/YYYY (day first, NOT month first). "07/06/2569" = 7 June 2569 BE = "2026-06-07".
 - Thai date "14 ม.ค. 2568" -> "2025-01-14".
+- Numeric date "06/07/2569" on a Thai document = 6 July 2569 BE = "2026-07-06" ONLY if context confirms July. Otherwise assume DD/MM.
 - For bank slips: vendor_name = recipient/payee; document_type = "slip".
 - For order screenshots: vendor_name = platform or shop; document_type = "order_screenshot".
 - Never invent a tax ID — only include vendor_tax_id if clearly visible (13 digits).
@@ -111,7 +114,30 @@ def _safe_parse(raw: str) -> dict:
         raw = re.sub(r"\s*```$", "", raw)
     try:
         result = json.loads(raw)
-        return result if isinstance(result, dict) else {}
+        if not isinstance(result, dict):
+            return {}
+        _fix_future_date(result)
+        return result
     except json.JSONDecodeError:
         logger.warning("Gemini returned non-JSON: %.120s", raw)
         return {}
+
+
+def _fix_future_date(data: dict) -> None:
+    """If issue_date is in the future, try swapping day/month (DD/MM vs MM/DD)."""
+    raw_date = data.get("issue_date")
+    if not raw_date:
+        return
+    try:
+        parsed = date.fromisoformat(raw_date)
+    except (ValueError, TypeError):
+        return
+    if parsed <= date.today():
+        return
+    try:
+        swapped = parsed.replace(month=parsed.day, day=parsed.month)
+    except ValueError:
+        return
+    if swapped <= date.today():
+        logger.info("Fixed swapped date: %s -> %s", raw_date, swapped.isoformat())
+        data["issue_date"] = swapped.isoformat()
