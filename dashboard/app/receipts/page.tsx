@@ -4,6 +4,7 @@ import { ReceiptsTable } from "@/components/receipts-table"
 import { SummaryCards } from "@/components/summary-cards"
 import { CsvExportButton } from "@/components/csv-export-button"
 import { FilterBar } from "@/components/filter-bar"
+import { DailyChart } from "@/components/daily-chart"
 
 // Next.js 16: searchParams is async
 type SearchParams = Promise<{ month?: string; category?: string }>
@@ -85,6 +86,8 @@ export default async function ReceiptsPage({ searchParams }: { searchParams: Sea
           <FilterBar categories={categories} currentMonth={month} currentCategory={category} />
           <CsvExportButton receipts={rows} month={month} category={category} />
         </div>
+
+        <DailyChart receipts={rows} />
 
         <ReceiptsTable receipts={rows} />
       </main>
