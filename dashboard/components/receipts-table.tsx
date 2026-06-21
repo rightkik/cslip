@@ -18,6 +18,13 @@ function fmt(n: number | null) {
   return new Intl.NumberFormat("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)
 }
 
+function fmtDate(iso: string | null) {
+  if (!iso) return ""
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return ""
+  return d.toLocaleDateString("th-TH", { timeZone: "Asia/Bangkok", year: "numeric", month: "2-digit", day: "2-digit" })
+}
+
 export function ReceiptsTable({ receipts }: { receipts: Receipt[] }) {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [isPending, startTransition] = useTransition()
@@ -130,7 +137,8 @@ export function ReceiptsTable({ receipts }: { receipts: Receipt[] }) {
                     className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
                   />
                 </th>
-                <th className="px-4 py-3 text-left font-medium">วันที่</th>
+                <th className="px-4 py-3 text-left font-medium">วันที่เพิ่ม</th>
+                <th className="px-4 py-3 text-left font-medium">วันที่ใบเสร็จ</th>
                 <th className="px-4 py-3 text-left font-medium">ผู้ขาย</th>
                 <th className="px-4 py-3 text-left font-medium">หมวดหมู่</th>
                 <th className="px-4 py-3 text-left font-medium">ประเภท</th>
@@ -154,8 +162,11 @@ export function ReceiptsTable({ receipts }: { receipts: Receipt[] }) {
                       className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
                     />
                   </td>
+                  <td className="px-4 py-3 text-gray-500 whitespace-nowrap text-xs">
+                    {fmtDate(r.created_at)}
+                  </td>
                   <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
-                    {r.issue_date ?? "-"}
+                    {r.issue_date ?? ""}
                   </td>
                   <td className="px-4 py-3 text-gray-900 font-medium max-w-[200px] truncate">
                     {r.vendor_name ?? "-"}
