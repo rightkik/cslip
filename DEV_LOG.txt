@@ -376,3 +376,30 @@ NOTES:
     avoid BOM corruption. This applies to any native CLI that is sensitive to
     leading bytes in its input.
 ========================================
+========================================
+[2026-06-21 19:41] TASK: Dashboard — Admin delete receipts
+----------------------------------------
+WHAT: Added ability for admin to select and delete unwanted receipts from the dashboard.
+      Scope: Supabase only (Sheet rows and Drive files are not removed).
+
+  New file: dashboard/app/receipts/actions.ts
+  - Server Action deleteReceipts(ids: string[]) — hard deletes from Supabase.
+  - Re-verifies auth + ADMIN_EMAILS inside the action (server actions are standalone POST endpoints).
+  - Calls revalidatePath("/receipts") after successful delete.
+
+  Modified: dashboard/components/receipts-table.tsx
+  - Checkbox column with select-all in header.
+  - Selected rows highlighted with blue tint.
+  - Red action bar appears when items selected: shows count, "ลบรายการที่เลือก" + "ยกเลิก" buttons.
+  - Confirmation modal before delete (Thai copy, warns irreversible).
+  - useTransition for non-blocking delete with loading state ("กำลังลบ...").
+  - Selection cleared after successful delete; alert on error.
+
+WHY:  User had test uploads polluting the confirmed receipts view. No way to remove them
+      from the dashboard previously. Supabase-only delete chosen for simplicity — Drive/Sheets
+      cleanup can be done manually or added later via a backend endpoint.
+
+FILES: dashboard/app/receipts/actions.ts (new), dashboard/components/receipts-table.tsx (modified)
+NOTES: If full cleanup (Supabase + Sheets + Drive) is needed later, add a DELETE endpoint to
+       the FastAPI backend and have the dashboard call it instead of direct Supabase delete.
+========================================
