@@ -17,7 +17,7 @@ export function DailyChart({ receipts }: { receipts: Receipt[] }) {
       byDate.set(date, (byDate.get(date) ?? 0) + (r.total_amount ?? 0))
     }
     return Array.from(byDate.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
+      .sort(([a], [b]) => new Date(a).getTime() - new Date(b).getTime())
       .map(([date, total]) => ({ date, total }))
   }, [receipts])
 
