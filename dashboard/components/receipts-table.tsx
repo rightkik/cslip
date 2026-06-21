@@ -21,11 +21,14 @@ function fmt(n: number | null) {
   return new Intl.NumberFormat("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)
 }
 
-function fmtDate(iso: string | null) {
+function fmtDate(iso: string | null, withTime = false) {
   if (!iso) return ""
   const d = new Date(iso)
   if (isNaN(d.getTime())) return ""
-  return d.toLocaleDateString("th-TH", { timeZone: "Asia/Bangkok", year: "numeric", month: "2-digit", day: "2-digit" })
+  const date = d.toLocaleDateString("th-TH", { timeZone: "Asia/Bangkok", year: "numeric", month: "2-digit", day: "2-digit" })
+  if (!withTime) return date
+  const time = d.toLocaleTimeString("th-TH", { timeZone: "Asia/Bangkok", hour: "2-digit", minute: "2-digit", hour12: false })
+  return `${date} ${time}`
 }
 
 function SortIcon({ field, sortField, sortDir }: { field: SortField; sortField: SortField; sortDir: SortDir }) {
@@ -201,7 +204,7 @@ export function ReceiptsTable({ receipts }: { receipts: Receipt[] }) {
                     />
                   </td>
                   <td className="px-4 py-3 text-gray-500 whitespace-nowrap text-xs">
-                    {fmtDate(r.created_at)}
+                    {fmtDate(r.created_at, true)}
                   </td>
                   <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
                     {r.issue_date ?? ""}
