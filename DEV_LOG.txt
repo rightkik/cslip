@@ -403,3 +403,37 @@ FILES: dashboard/app/receipts/actions.ts (new), dashboard/components/receipts-ta
 NOTES: If full cleanup (Supabase + Sheets + Drive) is needed later, add a DELETE endpoint to
        the FastAPI backend and have the dashboard call it instead of direct Supabase delete.
 ========================================
+========================================
+[2026-06-21 20:00] TASK: Dashboard — Date columns, sorting, and daily chart
+----------------------------------------
+WHAT: Several dashboard improvements in one session:
+
+  1. Two date columns (commit 95a0134)
+     - Split single "วันที่" column into "วันที่เพิ่ม" (created_at) and "วันที่ใบเสร็จ" (issue_date).
+     - If either value is missing, the cell is left blank.
+
+  2. Show time on created_at (commit fa1a130)
+     - "วันที่เพิ่ม" now displays date + time in Bangkok timezone (e.g. 21/06/2569 19:41).
+     - "วันที่ใบเสร็จ" remains date-only.
+
+  3. Sortable date columns (commit 7e57039)
+     - Default sort changed from issue_date to created_at DESC (newest added first).
+     - Both date column headers are clickable — toggles between asc/desc.
+     - Sort indicator arrows: ↓↑ on active column, ↕ on inactive.
+     - Client-side sort via useMemo, server query provides initial order.
+
+  4. Daily spending bar chart (commits f91c24c, 1afb6a5)
+     - New component: dashboard/components/daily-chart.tsx (recharts).
+     - Bar chart grouped by issue_date, showing sum of total_amount per day.
+     - Placed above the receipts table, respects month/category filters.
+     - Tooltip shows amount in ฿ with Thai formatting.
+     - Fix: sort bars by Date.getTime() instead of string compare for correct order.
+
+WHY:  Dashboard needed better visibility into when receipts were added vs. the receipt date,
+      ability to sort by either, and a visual overview of daily spending patterns.
+
+FILES: dashboard/components/receipts-table.tsx (modified),
+       dashboard/components/daily-chart.tsx (new),
+       dashboard/app/receipts/page.tsx (modified),
+       dashboard/package.json (added recharts)
+========================================
