@@ -437,3 +437,33 @@ FILES: dashboard/components/receipts-table.tsx (modified),
        dashboard/app/receipts/page.tsx (modified),
        dashboard/package.json (added recharts)
 ========================================
+========================================
+[2026-06-21 21:00] TASK: Fix DD/MM date swap in Gemini OCR
+----------------------------------------
+WHAT: Gemini OCR was swapping day/month on Thai receipts with numeric dates.
+      Example: UNIQLO receipt dated 07/06/2569 (7 June) was parsed as 2026-07-06 (6 July).
+
+  Two-layer fix:
+
+  1. Prompt clarification (app/ocr/gemini.py)
+     - Added explicit rule: Thai documents use DD/MM/YYYY, not MM/DD/YYYY.
+     - Added example: "07/06/2569" on a Thai document = 7 June = "2026-06-07".
+
+  2. Post-processing guard: _fix_future_date() (app/ocr/gemini.py)
+     - After JSON parse, checks if issue_date is in the future.
+     - If so, tries swapping day↔month. If swapped date is valid and not in the future,
+       uses the corrected value and logs the fix.
+     - Handles edge cases: day > 12 (can't swap), invalid date after swap.
+
+  3. Data fix
+     - Updated UNIQLO receipt (id: f873054f) in Supabase: 2026-07-06 → 2026-06-07.
+
+WHY:  Thai receipts universally use DD/MM/YYYY but Gemini sometimes interprets ambiguous
+      numeric dates (where day ≤ 12) as MM/DD. The future-date guard catches this even if
+      the prompt fix is insufficient.
+
+FILES: app/ocr/gemini.py (modified)
+NOTES: The _fix_future_date heuristic only catches dates in the future. If a swapped date
+       still falls in the past (e.g. 03/04 vs 04/03), it cannot detect the error.
+       For now this covers the most visible failure mode.
+========================================
