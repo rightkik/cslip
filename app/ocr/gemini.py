@@ -78,16 +78,14 @@ class GeminiOCR(OCRProvider):
                 config=types.GenerateContentConfig(
                     system_instruction=_SYSTEM_PROMPT,
                     response_mime_type="application/json",
-                    thinking_config=types.ThinkingConfig(thinking_budget=0),
                 ),
             )
             raw = response.text or ""
             data = _safe_parse(raw)
             return ReceiptData(**data)
         except Exception:
-            logger.exception("Gemini OCR failed")
+            logger.exception("Gemini OCR failed model=%s", self._model)
             raise
-
 
     async def extract_text(self, text: str) -> ReceiptData:
         try:
@@ -97,13 +95,12 @@ class GeminiOCR(OCRProvider):
                 config=types.GenerateContentConfig(
                     system_instruction=_TEXT_PROMPT,
                     response_mime_type="application/json",
-                    thinking_config=types.ThinkingConfig(thinking_budget=0),
                 ),
             )
             data = _safe_parse(response.text or "")
             return ReceiptData(**data)
         except Exception:
-            logger.exception("Gemini text parse failed")
+            logger.exception("Gemini text parse failed model=%s", self._model)
             raise
 
 

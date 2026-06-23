@@ -467,3 +467,21 @@ NOTES: The _fix_future_date heuristic only catches dates in the future. If a swa
        still falls in the past (e.g. 03/04 vs 04/03), it cannot detect the error.
        For now this covers the most visible failure mode.
 ========================================
+
+========================================
+[2026-06-23] FIX: Remove thinking_budget=0 from Gemini OCR config
+----------------------------------------
+WHAT: Removed `thinking_config=types.ThinkingConfig(thinking_budget=0)` from both
+      `extract()` and `extract_text()` in app/ocr/gemini.py. Updated error message
+      in main.py from misleading "อ่านไม่ออก" to generic "เกิดข้อผิดพลาด". Added
+      exception details to the log line.
+WHY:  Users reported "อ่านไม่ออก กรุณาถ่ายใหม่ให้ชัดขึ้น" on clear receipt photos.
+      Root cause: gemini-2.5-flash with thinking_budget=0 likely began failing after
+      a server-side Gemini API update. The catch-all `except Exception` showed a
+      misleading OCR-specific error for what was actually an API/config error.
+      thinking_budget=0 was added in commit d96e6ca to save cost but is unnecessary —
+      the thinking overhead for short receipt OCR prompts is negligible.
+FILES: app/ocr/gemini.py, app/main.py
+NOTES: If the issue persists after deploy, check Render logs for the actual exception.
+       The improved logging now includes the exception message and model name.
+========================================

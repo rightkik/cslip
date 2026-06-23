@@ -179,10 +179,10 @@ async def _process_receipt(message_id: str, reply_token: str, line_user_id: str)
         # Reply BEFORE Drive upload — LINE reply token expires in 30 s
         await reply_receipt_confirmation(reply_token, data, receipt_id)
         logger.info("Receipt saved id=%s messageId=%s", receipt_id, message_id)
-    except Exception:
-        logger.exception("Failed to process messageId=%s", message_id)
+    except Exception as exc:
+        logger.exception("Failed to process messageId=%s: %s", message_id, exc)
         try:
-            await reply_text(reply_token, "อ่านไม่ออก กรุณาถ่ายใหม่ให้ชัดขึ้น หรือลองอีกครั้ง 🙏")
+            await reply_text(reply_token, "เกิดข้อผิดพลาด กรุณาลองส่งรูปอีกครั้ง 🙏")
         except Exception:
             logger.exception("Failed to send error reply for messageId=%s", message_id)
         return
